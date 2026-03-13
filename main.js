@@ -101,6 +101,16 @@ function getActiveTime(shiftDuration, idleTime) {
 // ============================================================
 function metQuota(date, activeTime) {
     // TODO: Implement this function
+    let activeSec = timeToSeconds(activeTime);
+    //split date to year, month, day
+    let [y, m, d] = date.split("-").map(Number);
+    //check if date is in Eid period
+    let isEid = (y === 2025 && m === 4 && d >= 10 && d <= 30);
+    //set quota depending on Eid or normal day
+    let quotaSec = isEid
+        ? 6 * 3600
+        : 8 * 3600 + 24 * 60;
+    return activeSec >= quotaSec;
 }
 
 // ============================================================
@@ -109,8 +119,96 @@ function metQuota(date, activeTime) {
 // shiftObj: (typeof object) has driverID, driverName, date, startTime, endTime
 // Returns: object with 10 properties or empty object {}
 // ============================================================
+// ============================================================
+// 5 addShiftRecord
+
 function addShiftRecord(textFile, shiftObj) {
-    // TODO: Implement this function
+
+    //Read file safely (in case file does not exist)
+    let content = fs.existsSync(textFile)
+        ? fs.readFileSync(textFile, "utf8").trim()
+        : "";
+
+    //Split file into lines
+    let lines = content ? content.split("\n") : [];
+    
+    //Check if duplicate exists
+    //same driverID + same date
+    for (let line of lines) {
+
+        // skip empty lines
+        if (!line.trim()) continue;
+
+        let cols = line.split(",");
+
+        if (
+            cols[0] === shiftObj.driverID &&
+            cols[2] === shiftObj.date
+        ) {
+            return {}; // duplicate found
+        }
+    }
+
+
+    let shiftDuration = getShiftDuration(
+        shiftObj.startTime,
+        shiftObj.endTime
+    );
+    let idleTime = getIdleTime(
+        shiftObj.startTime,
+        shiftObj.endTime
+    );
+    let activeTime = getActiveTime(
+        shiftDuration,idleTime
+    );
+    let metQ = metQuota(
+        shiftObj.date,activeTime
+    );
+    let hasB = false; 
+
+    let newLine =
+        `${shiftObj.driverID},${shiftObj.driverName},${shiftObj.date},` +
+        `${shiftObj.startTime},${shiftObj.endTime},` +
+        `${shiftDuration},${idleTime},${activeTime},` +
+        `${metQ},${hasB}`;
+    
+    // Find where to insert
+    // after last record of this driver
+    let insertIndex = lines.length;
+
+    for (let i = lines.length - 1; i >= 0; i--) {
+
+        if (!lines[i].trim()) continue;
+
+        let cols = lines[i].split(",");
+
+        if (cols[0] === shiftObj.driverID) {
+
+            insertIndex = i + 1;
+            break;
+        }
+    }
+
+    // Insert new record
+    lines.splice(insertIndex, 0, newLine);
+    fs.writeFileSync(
+        textFile,
+        lines.join("\n") + "\n"
+    );
+
+    return {
+
+        driverID: shiftObj.driverID,
+        driverName: shiftObj.driverName,
+        date: shiftObj.date,
+        startTime: shiftObj.startTime,
+        endTime: shiftObj.endTime,
+        shiftDuration: shiftDuration,
+        idleTime: idleTime,
+        activeTime: activeTime,
+        metQuota: metQ,
+        hasBonus: hasB
+    };
 }
 
 // ============================================================
@@ -123,7 +221,19 @@ function addShiftRecord(textFile, shiftObj) {
 // ============================================================
 function setBonus(textFile, driverID, date, newValue) {
     // TODO: Implement this function
+    let content = fs.readFileSync(textFile, "utf8");
+    let lines = content.split("\n");
+    for (let i = 1; i < lines.length; i++) {
+        let cols = lines[i].split(",");
+        if (cols[0] === driverID && cols[2] === date) {
+            cols[9] = newValue.toString().toLowerCase();
+            lines[i] = cols.join(",");
+            break;
+        }
+    }
+    fs.writeFileSync(textFile, lines.join("\n"));
 }
+
 
 // ============================================================
 // Function 7: countBonusPerMonth(textFile, driverID, month)
