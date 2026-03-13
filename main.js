@@ -30,9 +30,23 @@ function secondsToHMS(sec) {
 // Returns: string formatted as h:mm:ss
 // ============================================================
 
+// Calculate shift duration
 function getShiftDuration(startTime, endTime) {
-    
+    // This function calculates how long the shift lasted
+    // from startTime to endTime
+     // TODO: Implement this function
+    let startSec = timeToSeconds(startTime);//to conver start to end
+    let endSec = timeToSeconds(endTime);//to convert end to start
+    let diff = endSec - startSec;
+
+    // overnight shift
+    //if negative then shift passed midnight (overnight shift)
+    //so we add 24 hours
+    if (diff < 0) diff += 24 * 3600;
+
+    return secondsToHMS(diff);
 }
+
 
 // ============================================================
 // Function 2: getIdleTime(startTime, endTime)
@@ -40,8 +54,23 @@ function getShiftDuration(startTime, endTime) {
 // endTime: (typeof string) formatted as hh:mm:ss am or hh:mm:ss pm
 // Returns: string formatted as h:mm:ss
 // ============================================================
+// Calculate idle time outside delivery hours (8–22)
 function getIdleTime(startTime, endTime) {
-    // TODO: Implement this function
+     // TODO: Implement this function
+    let start = timeToSeconds(startTime);
+    let end = timeToSeconds(endTime);
+
+    if (end < start) end += 24 * 3600; // overnight
+    let deliveryStart = 8 * 3600;
+    let deliveryEnd = 22 * 3600;
+    let idle = 0;
+ // before 8am
+    if (start < deliveryStart)
+        idle += deliveryStart - start;
+// after 10pm
+    if (end > deliveryEnd)
+        idle += end - deliveryEnd;
+    return secondsToHMS(idle);
 }
 
 // ============================================================
@@ -52,6 +81,16 @@ function getIdleTime(startTime, endTime) {
 // ============================================================
 function getActiveTime(shiftDuration, idleTime) {
     // TODO: Implement this function
+    let shift = timeToSeconds(shiftDuration);
+    let idle = timeToSeconds(idleTime);
+    // active time = shift - idle
+    let active = shift - idle;
+
+    // make sure active is not negative
+    if (active < 0) {
+        active = 0;
+    }
+    return secondsToHMS(shift - idle);
 }
 
 // ============================================================
