@@ -244,7 +244,27 @@ function setBonus(textFile, driverID, date, newValue) {
 // ============================================================
 function countBonusPerMonth(textFile, driverID, month) {
     // TODO: Implement this function
+    let content = fs.readFileSync(textFile, "utf8").trim();
+    let lines = content ? content.split("\n") : [];
+    let count = 0;
+    let exists = false;
+    let monthStr = month.toString().padStart(2, "0");
+
+    for (let line of lines) {
+        let trimmed = line.trim();
+        if (!trimmed) continue;
+        let cols = trimmed.split(",");
+        if (cols[0] === driverID) {
+            exists = true;
+            let dMonth = cols[2].split("-")[1];
+            if (dMonth === monthStr && cols[9].toLowerCase() === "true") {
+                count++;
+            }
+        }
+    }
+    return exists ? count : -1;
 }
+
 
 // ============================================================
 // Function 8: getTotalActiveHoursPerMonth(textFile, driverID, month)
@@ -255,7 +275,24 @@ function countBonusPerMonth(textFile, driverID, month) {
 // ============================================================
 function getTotalActiveHoursPerMonth(textFile, driverID, month) {
     // TODO: Implement this function
+    let content = fs.readFileSync(textFile, "utf8").trim();
+    let lines = content ? content.split("\n") : [];
+    let totalSec = 0;
+    let monthStr = month.toString().padStart(2, "0");
+    for (let line of lines) {
+        let trimmed = line.trim();
+        if (!trimmed) continue;
+        let cols = trimmed.split(",");
+        if (cols[0] === driverID) {
+            let dMonth = cols[2].split("-")[1];
+            if (dMonth === monthStr) {
+                totalSec += timeToSeconds(cols[7]);
+            }
+        }
+    }
+    return secondsToHMS(totalSec);
 }
+
 
 // ============================================================
 // Function 9: getRequiredHoursPerMonth(textFile, rateFile, bonusCount, driverID, month)
@@ -266,8 +303,75 @@ function getTotalActiveHoursPerMonth(textFile, driverID, month) {
 // month: (typeof number)
 // Returns: string formatted as hhh:mm:ss
 // ============================================================
+// ============================================================
+// 9 getRequiredHoursPerMonth
+
 function getRequiredHoursPerMonth(textFile, rateFile, bonusCount, driverID, month) {
-    // TODO: Implement this function
+// TODO: Implement this function
+    // read shift file
+    let content = fs.readFileSync(textFile, "utf8").trim();
+    let lines = content ? content.split("\n") : [];
+
+    // read rate file
+    let rateContent = fs.readFileSync(rateFile, "utf8").trim();
+    let rateLines = rateContent ? rateContent.split("\n") : [];
+
+
+    // get dayOff of driver
+    let dayOff = "";
+
+    for (let line of rateLines) {
+
+        if (!line.trim()) continue;
+
+        let cols = line.split(",");
+
+        if (cols[0] === driverID) {
+            dayOff = cols[1];
+            break;
+        }
+    }
+    
+    // prepare month format
+    let monthStr = month.toString().padStart(2, "0");
+    let totalSec = 0;
+    
+    // loop shifts
+    for (let line of lines) {
+        if (!line.trim()) continue;
+        let cols = line.split(",");
+        if (cols[0] !== driverID) continue;
+        let date = cols[2];
+        let [y, m, d] = date.split("-").map(Number);
+        let dMonth = m.toString().padStart(2, "0");
+        if (dMonth !== monthStr) continue;
+
+        // check dayOff
+        let dayName =
+            new Date(date).toLocaleDateString(
+                "en-US",
+                { weekday: "long" }
+            );
+
+        if (dayName === dayOff) continue;
+
+        // check Eid period
+        let isEid =
+            (y === 2025 && m === 4 && d >= 10 && d <= 30);
+
+
+        if (isEid) {
+            totalSec += 6 * 3600;
+        }
+        else {
+            totalSec += 8 * 3600 + 24 * 60;
+        }
+    }
+    // reduce bonus hours
+    // each bonus reduces 2 hours
+    totalSec -= bonusCount * (2 * 3600);
+    if (totalSec < 0) totalSec = 0;
+    return secondsToHMS(totalSec);
 }
 
 // ============================================================
